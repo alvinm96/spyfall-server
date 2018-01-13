@@ -48,6 +48,8 @@ io.sockets.on('connection', (socket) => {
     let curRoom;
     let minutes = 8; // default time
 
+    var timer;
+
     socket.on('game-start', (gameInfo) => {
         if (rooms[curRoom].length < minPlayers) {
             return socket.emit('insufficient-players', true);
@@ -56,18 +58,27 @@ io.sockets.on('connection', (socket) => {
 
         var time = minutes * 60;
 
-        setInterval(() => {
+        timer = setInterval(() => {
             io.in(curRoom).emit('time-count', time);
             time--;
+
+            if (time == -2) {
+                clearInterval(timer);
+                io.in(curRoom).emit('game-over', true);
+            }
         }, 1000);
 
-        if (time <= 0) {
-            io.in(curRoom).emit('game-over');
-        }
+
         let players = rooms[curRoom];
 
         io.in(curRoom).emit('game-info', { players: players, info: gameInfo });
         socket.broadcast.to(curRoom).emit('starting-game');
+    });
+
+    socket.on('end-game', () => {
+        console.log('end game');
+        clearInterval(timer);
+        io.in(curRoom).emit('game-over', true);
     });
 
     socket.on('create-room', () => {
