@@ -39,7 +39,7 @@ function generateRoom() {
 
 var rooms = { };
 var maxPlayers = 12;
-var minPlayers = 3;
+var minPlayers = 1;
 
 var io = require('socket.io')(server);
 
@@ -47,8 +47,10 @@ io.sockets.on('connection', (socket) => {
     let curPlayer;
     let curRoom;
     let minutes = 8; // default time
+    let isGameOver = false;
 
     var timer;
+    var roomTimer;
 
     socket.on('game-start', (gameInfo) => {
         if (rooms[curRoom].length < minPlayers) {
@@ -67,7 +69,6 @@ io.sockets.on('connection', (socket) => {
                 io.in(curRoom).emit('game-over', true);
             }
         }, 1000);
-
 
         let players = rooms[curRoom];
 
@@ -107,8 +108,11 @@ io.sockets.on('connection', (socket) => {
             io.in(curRoom).emit('player-left', { players: rooms[curRoom] });
 
             if (rooms[curRoom].length === 0) {
-                console.log(`${curRoom} is deleted`);
-                delete rooms[curRoom];
+                // three minutes of empty room then delete it
+                setInterval(() => {
+                    console.log(`${curRoom} is deleted`);
+                    delete rooms[curRoom];
+                }, 180000);
             }
         }
     });
@@ -128,8 +132,11 @@ io.sockets.on('connection', (socket) => {
             io.in(curRoom).emit('player-left', { players: rooms[curRoom] });
 
             if (rooms[curRoom].length === 0) {
-                console.log(`${curRoom} is deleted`);
-                delete rooms[curRoom];
+                // three minutes of empty room then delete it
+                roomTimer = setInterval(() => {
+                    console.log(`${curRoom} is deleted`);
+                    delete rooms[curRoom];
+                }, 180000);
             }
         }
     });
@@ -154,22 +161,27 @@ io.sockets.on('connection', (socket) => {
             console.log('invalid name');
             socket.emit('invalid-name');
             return;
-        } else if (room.includes(data.name)) {
-            console.log('player exists');
-            socket.emit('existing-player');
-            return;
+        }
+        
+        if (room.includes(data.name)) {
+            socket.emit('existing-player', (data.name));
+        } else {
+            room.push(data.name);
         }
 
         curPlayer = data.name;
         curRoom = data.roomCode;
         console.log(`${data.name} joined ${data.roomCode}`);
         socket.join(data.roomCode);
-        room.push(data.name);
         
         let roomInfo = {
             roomCode: data.roomCode,
             players: room
         };
+
+        if (roomTimer !== undefined) {
+            roomTimer.clearInterval();
+        }
         
         io.in(data.roomCode).emit('joined-room', roomInfo);
     });
