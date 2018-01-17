@@ -39,7 +39,7 @@ function generateRoom() {
 
 var rooms = { };
 var maxPlayers = 12;
-var minPlayers = 1;
+var minPlayers = 3;
 
 var io = require('socket.io')(server);
 
